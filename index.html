@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Hydrate">
+<meta name="theme-color" content="#1590e0">
+<title>Hydrate water tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Figtree:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: friendly, calm, everyday health app.
+   IDEA: a glass on the table that fills as you drink.
+   PICTURE: a large drinking glass with a moving water line, one per person.
+   COLOUR and TYPE: clear water blue on white, aqua support, coral accent; Fredoka numbers, Figtree text.
+   LAYOUT: phone-first single column, person chips on top, tab bar at the bottom. */
+:root{color-scheme:light dark;
+--bg:light-dark(#f3f8fb,#06121a);--card:light-dark(#fff,#0e202c);--ink:light-dark(#0b2233,#e4f1f8);
+--mute:light-dark(#587083,#8ba6b6);--line:light-dark(#dbe7ee,#1b3343);--soft:light-dark(#e6f3fb,#12293a);
+--water:#1590e0;--aqua:#4fd1e8;--coral:#ff6b57;--glass:light-dark(#cfe3ef,#2a4659)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Figtree,system-ui,sans-serif;overflow-x:clip;-webkit-tap-highlight-color:transparent}
+.app{max-width:560px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 96px)}
+h1,h2,.num{font-family:Fredoka,Figtree,sans-serif;font-weight:600;margin:0;line-height:1.05}
+h1{font-size:32px;color:var(--water)}h2{font-size:22px;margin-bottom:12px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:3px solid var(--aqua);outline-offset:2px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:16px;scrollbar-width:none}
+.chip{flex:none;min-height:40px;padding:0 16px;border-radius:999px;background:var(--card);border:1px solid var(--line);font-weight:600}
+.chip.on{background:var(--water);border-color:var(--water);color:#fff}
+.chip.add{color:var(--water)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:20px;margin-bottom:16px}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:center}
+.glass{width:100%;max-width:230px;justify-self:center}
+.glass svg{width:100%;height:auto;display:block}
+.wave{animation:wave 3.2s linear infinite}
+@keyframes wave{to{transform:translateX(-100px)}}
+.lvl{transition:transform .9s cubic-bezier(.2,.8,.2,1)}
+@media(prefers-reduced-motion:reduce){.wave{animation:none}.lvl{transition:none}}
+.big{font-size:clamp(36px,10vw,52px);color:var(--ink)}
+.of{color:var(--mute);margin-top:4px}
+.status{display:inline-block;margin-top:12px;padding:4px 12px;border-radius:999px;background:var(--soft);color:var(--water);font-weight:700;font-size:14px}
+.status.done{background:var(--water);color:#fff}
+.quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:18px}
+.qb{min-height:64px;border-radius:16px;background:var(--soft);color:var(--water);font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.qb small{font-weight:600;color:var(--mute);font-size:13px}
+.qb:active{transform:scale(.96)}
+.custom{display:flex;gap:8px;margin-top:10px}
+.custom input{flex:1;min-height:48px;border-radius:14px;border:1px solid var(--line);background:var(--bg);padding:0 14px;font-size:16px}
+.btn{min-height:48px;padding:0 18px;border-radius:14px;background:var(--water);color:#fff;font-weight:700}
+.btn.ghost{background:var(--soft);color:var(--water)}
+.btn.danger{background:transparent;color:var(--coral);border:1px solid var(--coral)}
+.btn.danger.sure{background:var(--coral);color:#fff}
+.log{list-style:none;margin:0;padding:0}
+.log li{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.log li:first-child{border-top:0}
+.log .t{color:var(--mute);margin-left:auto;white-space:nowrap}
+.x{width:36px;height:36px;border-radius:50%;color:var(--mute);font-size:20px;line-height:1}
+.x:hover{background:var(--soft);color:var(--coral)}
+.empty{color:var(--mute);margin:0}
+.drop{width:12px;height:16px;flex:none}
+.bars{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;height:200px;position:relative;align-items:end;margin-top:28px}
+.bar{display:flex;flex-direction:column;justify-content:flex-end;height:100%;text-align:center}
+.bar i{display:block;border-radius:10px 10px 4px 4px;background:color-mix(in srgb,var(--water) 35%,transparent);min-height:4px;transition:height .6s}
+.bar.met i{background:linear-gradient(var(--aqua),var(--water))}
+.bar b{font-size:12px;color:var(--mute);font-weight:600;margin-bottom:4px;white-space:nowrap}
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;text-align:center;font-size:13px;color:var(--mute);margin-top:6px}
+.goalline{position:absolute;left:0;right:0;border-top:2px dashed var(--aqua);pointer-events:none}
+.goalline span{position:absolute;right:0;top:-22px;font-size:12px;color:var(--mute);background:var(--card);padding:0 4px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.stat{background:var(--soft);border-radius:16px;padding:14px 10px;text-align:center}
+.stat .num{font-size:26px;color:var(--water)}
+.stat div:last-child{font-size:13px;color:var(--mute);margin-top:4px}
+.form{display:grid;gap:14px}
+.field label{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
+.field input{width:100%;min-height:48px;border-radius:14px;border:1px solid var(--line);background:var(--bg);padding:0 14px;font-size:16px}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.seg{display:flex;background:var(--soft);border-radius:14px;padding:4px;gap:4px}
+.seg button{flex:1;min-height:44px;border-radius:11px;font-weight:600;color:var(--mute)}
+.seg button.on{background:var(--card);color:var(--water);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.preview{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.preview .stat .num{font-size:24px}
+.note{font-size:14px;color:var(--mute);margin:0}
+.err{color:var(--coral);font-size:14px;margin:0}
+.tabs{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.tabs nav{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr)}
+.tabs a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 0 8px;color:var(--mute);text-decoration:none;font-size:13px;font-weight:600}
+.tabs a.on{color:var(--water)}
+.tabs svg{width:24px;height:24px}
+.overlay{position:fixed;inset:0;background:rgba(3,15,24,.45);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.sheet{background:var(--card);width:100%;max-width:560px;border-radius:24px 24px 0 0;padding:22px 18px calc(env(safe-area-inset-bottom) + 22px);max-height:92vh;overflow-y:auto}
+.sheet .top{margin-bottom:16px}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 10px 10px 18px;border-radius:14px;display:flex;align-items:center;gap:12px;z-index:30;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+.toast button{color:var(--aqua);font-weight:700;padding:6px 10px}
+a.btn{display:flex;align-items:center;justify-content:center;text-decoration:none;text-align:center}
+.next-box{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.next-box .num{font-size:26px;margin-top:2px}
+.plan{list-style:none;margin:12px 0 0;padding:0}
+.plan li{display:grid;grid-template-columns:52px minmax(0,1fr) 24px;gap:10px;align-items:center;padding:8px;border-top:1px solid var(--line)}
+.plan li:first-child{border-top:0}
+.plan .tm{font-family:Fredoka,sans-serif;font-weight:600;color:var(--mute)}
+.plan small{color:var(--mute)}
+.plan li.next{background:var(--soft);border-radius:12px;border-color:transparent}
+.plan li.next+li{border-color:transparent}
+.plan li.done .tm{color:var(--water)}
+.tick{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+li.done .tick{background:var(--water);border-color:var(--water)}
+.plan.plain .tick{visibility:hidden}
+details summary{cursor:pointer;color:var(--water);font-weight:600;margin-top:14px;min-height:32px}
+.actions{display:grid;gap:10px;margin-top:16px}
+.splash{position:fixed;inset:0;z-index:40;background:var(--bg);overflow:hidden;display:flex;align-items:flex-end;justify-content:center}
+.sp-water{position:absolute;left:0;right:0;bottom:0;height:46%;background:linear-gradient(#4fd1e8,#1590e0);transform:translateY(105%);animation:rise 1s cubic-bezier(.2,.8,.2,1) .1s forwards}
+.sp-water svg{position:absolute;left:0;top:-23px;width:200%;height:24px;animation:wave2 2.4s linear infinite}
+@keyframes rise{to{transform:none}}
+@keyframes wave2{to{transform:translateX(-50%)}}
+.sp-burst{position:absolute;left:50%;bottom:46%;width:0;height:0;z-index:1}
+.dp{position:absolute;left:0;top:0;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#4fd1e8;opacity:0;animation:splash 1.3s cubic-bezier(.25,.7,.4,1) forwards}
+@keyframes splash{0%{transform:translate(0,0) scale(.3);opacity:0}8%{opacity:1}50%{transform:translate(calc(var(--dx)*.7),var(--dy)) scale(1)}100%{transform:translate(var(--dx),calc(var(--dy) + 340px)) scale(.5);opacity:0}}
+.rp{position:absolute;left:-30px;top:-8px;width:60px;height:16px;border-radius:50%;border:3px solid rgba(255,255,255,.8);opacity:0;animation:ripple 1.4s ease-out .9s forwards}
+@keyframes ripple{0%{transform:scale(.2);opacity:1}100%{transform:scale(7);opacity:0}}
+.sp-card{position:relative;z-index:2;width:calc(100% - 24px);max-width:520px;max-height:82vh;overflow-y:auto;background:var(--card);border-radius:26px;padding:24px 20px;margin-bottom:calc(env(safe-area-inset-bottom) + 12px);box-shadow:0 18px 50px rgba(3,40,70,.3);opacity:0;transform:translateY(40px);animation:cardin .6s cubic-bezier(.2,.8,.2,1) 1.3s forwards}
+@keyframes cardin{to{opacity:1;transform:none}}
+.sp-card h2{font-size:30px;margin-bottom:6px}
+.sp-goal{font-family:Fredoka,sans-serif;font-weight:600;font-size:clamp(40px,12vw,56px);color:var(--water);line-height:1}
+.bell{display:flex;gap:12px;align-items:flex-start;background:var(--soft);border-radius:16px;padding:14px;margin-top:16px}
+.bell svg{flex:none;width:26px;height:26px;color:var(--water)}
+.bell p{margin:0}
+@media(prefers-reduced-motion:reduce){.sp-water{animation:none;transform:none}.sp-water svg{animation:none}.dp,.rp{display:none}.sp-card{animation:none;opacity:1;transform:none}}
+[hidden]{display:none!important}
+@media(max-width:420px){.hero{grid-template-columns:1fr;text-align:center}.glass{max-width:180px}.quick{grid-template-columns:repeat(2,minmax(0,1fr))}.stat .num{font-size:22px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <h1>Hydrate</h1>
+    <span class="note" id="today-date"></span>
+  </div>
+  <div class="chips" id="chips"></div>
+  <main id="view"></main>
+</div>
+
+<div class="tabs" id="tabs">
+  <nav>
+    <a href="#today" data-v="today"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5S5 10.2 5 14.8A7 7 0 0 0 19 14.8C19 10.2 12 2.5 12 2.5Z"/></svg>Today</a>
+    <a href="#history" data-v="history"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="12" width="4" height="9" rx="1.5"/><rect x="10" y="6" width="4" height="15" rx="1.5"/><rect x="17" y="9" width="4" height="12" rx="1.5"/></svg>History</a>
+    <a href="#person" data-v="person"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4.2"/><path d="M3.5 20.5c1-4.4 4.4-6.5 8.5-6.5s7.5 2.1 8.5 6.5Z"/></svg>Profile</a>
+  </nav>
+</div>
+
+<div class="overlay" id="overlay" hidden><div class="sheet" id="sheet"></div></div>
+<div class="splash" id="splash" hidden></div>
+<div class="toast" id="toast" hidden><span id="toast-msg"></span><button id="toast-undo" type="button">Undo</button></div>
+
+<script>
+{
+const KEY = 'hydrate.v1';
+let S = { people: [], active: null, entries: {} };
+try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(S, JSON.parse(raw)); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ACT = { low: { l: 'Low', x: 0 }, moderate: { l: 'Moderate', x: 350 }, high: { l: 'High', x: 700 } };
+const QUICK = [150, 250, 330, 500];
+
+/* ---------- Goal from sex + BMI ---------- */
+const bmi = p => p.weight / ((p.height / 100) ** 2);
+const cat = b => b < 18.5 ? 'Underweight' : b < 25 ? 'Healthy' : b < 30 ? 'Overweight' : 'Obese';
+function goal(p) {
+  const m = p.height / 100, b = bmi(p), upper = 25 * m * m;
+  // Above BMI 25, extra weight counts at 40%: fat holds far less water than lean tissue.
+  const eff = b > 25 ? upper + 0.4 * (p.weight - upper) : p.weight;
+  let g = eff * (p.sex === 'male' ? 35 : 31) + ACT[p.activity].x;
+  g = Math.min(4500, Math.max(1500, g));
+  return Math.round(g / 50) * 50;
+}
+const valid = p => p.name.trim() && p.height >= 100 && p.height <= 250 && p.weight >= 30 && p.weight <= 300;
+const fmt = ml => ml >= 1000 ? (ml / 1000).toFixed(2).replace(/\.?0+$/, '') + ' L' : ml + ' ml';
+
+/* ---------- Dates ---------- */
+const dayKey = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const person = () => S.people.find(p => p.id === S.active);
+const list = id => (S.entries[id] = S.entries[id] || []);
+const totalOn = (id, key) => list(id).filter(e => dayKey(new Date(e.t)) === key).reduce((a, e) => a + e.ml, 0);
+
+/* ---------- Drinking plan: wake → sleep ---------- */
+const toMin = s => { const [h, m] = String(s || '07:00').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+const hhmm = m => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+function span(p) {
+  const wake = toMin(p.wake || '07:00'); let sleep = toMin(p.sleep || '23:00');
+  if (sleep <= wake) sleep += 1440;            // bedtime after midnight
+  return { wake, sleep };
+}
+/* First drink 30 min after waking, last one 1 h before bed, about every 90 min.
+   The goal is split evenly in 25 ml steps, so the drinks add up exactly to the goal. */
+function plan(p) {
+  const g = goal(p), { wake, sleep } = span(p);
+  const start = wake + 30, end = Math.max(start, sleep - 60);
+  const n = Math.max(2, Math.min(12, Math.round((end - start) / 90) + 1));
+  const step = (end - start) / (n - 1), base = Math.floor(g / n / 25) * 25;
+  const extra = Math.round((g - base * n) / 25);   // spare 25 ml portions go to the earliest drinks
+  let cum = 0;
+  return [...Array(n)].map((_, i) => {
+    const ml = base + (i < extra ? 25 : 0);
+    cum += ml;
+    return { t: Math.round((start + i * step) / 15) * 15, ml, cum };
+  });
+}
+function nowMin(p) {
+  const d = new Date(), { wake, sleep } = span(p);
+  let m = d.getHours() * 60 + d.getMinutes();
+  if (sleep > 1440 && m < wake) m += 1440;
+  return m;
+}
+function planList(p, total, progress) {
+  const pl = plan(p), now = nowMin(p), nextIdx = progress ? pl.findIndex(s => s.t > now) : -1;
+  return `<ul class="plan ${progress ? '' : 'plain'}">${pl.map((s, i) => {
+    const done = progress && total >= s.cum;
+    return `<li class="${done ? 'done' : ''} ${i === nextIdx ? 'next' : ''}"><span class="tm">${hhmm(s.t)}</span><span>${s.ml} ml <small>· ${fmt(s.cum)} by then</small></span><span class="tick">${done ? '✓' : ''}</span></li>`;
+  }).join('')}</ul>`;
+}
+/* Calendar file: one daily repeating event per drink, each with an alert.
+   Opened on an iPhone it goes into the Calendar app, and every alert pops up as a notification. */
+function icsText(p) {
+  const pl = plan(p), g = goal(p), today = new Date();
+  const icsEsc = s => String(s).replace(/[\\,;]/g, m => '\\' + m).replace(/\n/g, ' ');
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const out = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Hydrate//Water reminders//EN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Hydrate'];
+  pl.forEach((s, i) => {
+    const day = s.t >= 1440 ? addDays(today, 1) : today;
+    const start = dayKey(day).replace(/-/g, '') + 'T' + hhmm(s.t % 1440).replace(':', '') + '00';
+    out.push('BEGIN:VEVENT', `UID:hydrate-${p.id}-${i}@hydrate.app`, `DTSTAMP:${stamp}`, `DTSTART:${start}`, 'DURATION:PT5M', 'RRULE:FREQ=DAILY',
+      `SUMMARY:${icsEsc(`Drink ${s.ml} ml of water`)}`,
+      `DESCRIPTION:${icsEsc(`${p.name}: aim for ${fmt(s.cum)} of your ${fmt(g)} by now.`)}`,
+      'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${icsEsc(`Time to drink ${s.ml} ml of water`)}`, 'TRIGGER:-PT0M', 'END:VALARM', 'END:VEVENT');
+  });
+  out.push('END:VCALENDAR');
+  return out.join('\r\n');
+}
+const icsLink = (p, label) => `<a class="btn" href="data:text/calendar;charset=utf-8,${encodeURIComponent(icsText(p))}" download="hydrate-${esc(p.name.replace(/[^\w-]+/g, '') || 'reminders')}.ics">${label}</a>`;
+const BELL = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22a2.5 2.5 0 0 0 2.4-2h-4.8A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5.5-6.8V3.5a1.5 1.5 0 0 0-3 0v.7A7 7 0 0 0 5 11v5l-2 2v1h18v-1Z"/></svg>`;
+
+/* ---------- Routing ---------- */
+const view = () => ['today', 'history', 'person'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'today';
+
+function render() {
+  $('#today-date').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
+  if (!S.people.length) {
+    $('#chips').innerHTML = ''; $('#tabs').hidden = true;
+    $('#view').innerHTML = `<div class="card"><h2>Who's drinking?</h2><p class="note" style="margin-bottom:16px">Add the first person. Their daily water goal is worked out from sex and BMI.</p>${formHTML(blank())}</div>`;
+    bindForm(blank(), false);
+    return;
+  }
+  if (!person()) S.active = S.people[0].id;
+  $('#tabs').hidden = false;
+  $('#chips').innerHTML = S.people.map(p => `<button class="chip ${p.id === S.active ? 'on' : ''}" data-id="${p.id}">${esc(p.name)}</button>`).join('')
+    + `<button class="chip add" id="add-person">+ Add person</button>`;
+  document.querySelectorAll('.tabs a').forEach(a => a.classList.toggle('on', a.dataset.v === view()));
+  ({ today: renderToday, history: renderHistory, person: renderPerson })[view()]();
+}
+
+/* ---------- Today ---------- */
+function glassSVG(level) {
+  const top = 22, bottom = 248, y = bottom - Math.min(level, 1) * (bottom - top);
+  return `<svg viewBox="0 0 200 262" role="img" aria-label="Glass ${Math.round(level * 100)}% full">
+    <defs>
+      <clipPath id="gc"><path d="M34 22H166L150 240Q148 250 138 250H62Q52 250 50 240Z"/></clipPath>
+      <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4fd1e8"/><stop offset="1" stop-color="#1590e0"/></linearGradient>
+    </defs>
+    <ellipse cx="100" cy="254" rx="62" ry="6" fill="currentColor" opacity=".08"/>
+    <g clip-path="url(#gc)">
+      <g class="lvl" style="transform:translateY(${y - 8}px)">
+        <path class="wave" fill="url(#wg)" d="M0 8Q25 0 50 8T100 8T150 8T200 8T250 8T300 8T350 8T400 8V300H0Z"/>
+      </g>
+      <rect x="44" y="30" width="10" height="190" rx="5" fill="#fff" opacity=".35"/>
+    </g>
+    <path d="M34 22H166L150 240Q148 250 138 250H62Q52 250 50 240Z" fill="none" stroke="var(--glass)" stroke-width="5" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+function renderToday() {
+  const p = person(), g = goal(p), today = dayKey(new Date());
+  const items = list(p.id).filter(e => dayKey(new Date(e.t)) === today).sort((a, b) => b.t - a.t);
+  const total = items.reduce((a, e) => a + e.ml, 0), lvl = total / g, left = Math.max(g - total, 0);
+  const status = lvl >= 1 ? 'Goal reached' : lvl >= .75 ? 'Almost there' : lvl >= .4 ? 'Keep going' : `${Math.round(lvl * 100)}% of goal`;
+  $('#view').innerHTML = `
+  <div class="card">
+    <div class="hero">
+      <div class="glass">${glassSVG(lvl)}</div>
+      <div>
+        <div class="num big">${fmt(total)}</div>
+        <div class="of">of ${fmt(g)} today</div>
+        <div class="of">${left ? fmt(left) + ' to go' : 'Nice work, ' + esc(p.name) + '!'}</div>
+        <span class="status ${lvl >= 1 ? 'done' : ''}">${status}</span>
+      </div>
+    </div>
+    <div class="quick">${QUICK.map(ml => `<button class="qb" data-ml="${ml}">+${ml}<small>ml</small></button>`).join('')}</div>
+    <form class="custom" id="custom"><input id="custom-ml" type="number" inputmode="numeric" min="10" max="3000" placeholder="Other amount (ml)" aria-label="Other amount in ml"><button class="btn">Add</button></form>
+  </div>
+  ${planCard(p, total, g)}
+  <div class="card">
+    <h2>Today's log</h2>
+    ${items.length ? `<ul class="log">${items.map(e => `<li><svg class="drop" viewBox="0 0 12 16"><path d="M6 0S0 7 0 10a6 6 0 0 0 12 0C12 7 6 0 6 0Z" fill="var(--aqua)"/></svg><span>${e.ml} ml</span><span class="t">${new Date(e.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span><button class="x" data-del="${e.t}" aria-label="Delete">×</button></li>`).join('')}</ul>`
+      : `<p class="empty">Nothing yet today. Tap a glass size above.</p>`}
+  </div>`;
+}
+
+function planCard(p, total, g) {
+  const pl = plan(p), now = nowMin(p), due = pl.filter(s => s.t <= now);
+  const expected = due.length ? due[due.length - 1].cum : 0, next = pl.find(s => s.t > now);
+  const st = total >= g ? ['Goal reached', 'done'] : total >= expected ? ['On track', ''] : [`Behind by ${fmt(expected - total)}`, ''];
+  return `<div class="card">
+    <div class="next-box">
+      <div><div class="note">Next reminder</div><div class="num">${next ? `${hhmm(next.t)} · ${next.ml} ml` : 'Done for today'}</div></div>
+      <span class="status ${st[1]}" style="margin:0">${st[0]}</span>
+    </div>
+    <details><summary>Today's drinking plan (${pl.length} drinks)</summary>${planList(p, total, true)}</details>
+  </div>`;
+}
+
+let toastTimer, lastAdded = null;
+function toast(msg, undo, ms = 4000) {
+  $('#toast-msg').textContent = msg; $('#toast-undo').hidden = !undo;
+  $('#toast').hidden = false; clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('#toast').hidden = true; }, ms);
+}
+function addWater(ml) {
+  const p = person(); if (!p || !(ml > 0)) return;
+  const e = { t: Date.now(), ml: Math.round(ml) };
+  list(p.id).push(e); lastAdded = { id: p.id, t: e.t }; save(); render();
+  toast(`Added ${e.ml} ml for ${p.name}`, true);
+}
+
+/* ---------- Welcome splash ---------- */
+function showSplash(p) {
+  const pl = plan(p), g = goal(p);
+  const drops = [...Array(24)].map(() => {
+    const dx = Math.round((Math.random() * 2 - 1) * 200), dy = -Math.round(110 + Math.random() * 260);
+    const s = 7 + Math.round(Math.random() * 12), dl = (0.85 + Math.random() * 0.2).toFixed(2);
+    return `<i class="dp" style="--dx:${dx}px;--dy:${dy}px;width:${s}px;height:${Math.round(s * 1.2)}px;animation-delay:${dl}s"></i>`;
+  }).join('');
+  $('#splash').innerHTML = `
+    <div class="sp-water"><svg viewBox="0 0 800 24" preserveAspectRatio="none"><path fill="#4fd1e8" d="M0 12Q50 0 100 12T200 12T300 12T400 12T500 12T600 12T700 12T800 12V24H0Z"/></svg></div>
+    <div class="sp-burst">${drops}<i class="rp"></i><i class="rp" style="animation-delay:1.15s"></i></div>
+    <div class="sp-card" role="dialog" aria-labelledby="sp-title">
+      <h2 id="sp-title">You're all set, ${esc(p.name)}!</h2>
+      <div class="note">Your daily water goal</div>
+      <div class="sp-goal">${fmt(g)}</div>
+      <div class="bell">${BELL}<p><b>Notifications will pop up on your iPhone through the day</b> to keep you on track: ${pl.length} reminders from ${hhmm(pl[0].t)} to ${hhmm(pl[pl.length - 1].t)}, each telling you how much to drink.</p></div>
+      ${planList(p, 0, false)}
+      <div class="actions">
+        ${icsLink(p, 'Turn on iPhone reminders')}
+        <button class="btn ghost" id="sp-close" type="button">Start tracking</button>
+      </div>
+      <p class="note" style="margin-top:12px">Tapping the button opens your iPhone Calendar. Tap <b>Add All</b> and every reminder repeats daily as a notification, even when Hydrate is closed.</p>
+    </div>`;
+  $('#splash').hidden = false;
+}
+
+/* While the app is open, also show a reminder banner at each planned time. */
+const shown = new Set();
+function checkReminders() {
+  S.people.forEach(p => {
+    const now = nowMin(p);
+    plan(p).forEach((s, i) => {
+      const key = `${p.id}|${dayKey(new Date())}|${i}`;
+      if (now >= s.t && now < s.t + 2 && !shown.has(key)) {
+        shown.add(key);
+        toast(`${p.name}, time to drink ${s.ml} ml of water`, false, 8000);
+        try { navigator.vibrate && navigator.vibrate(200); } catch (e) {}
+      }
+    });
+  });
+}
+
+/* ---------- History ---------- */
+function renderHistory() {
+  const p = person(), g = goal(p), now = new Date();
+  const days = [...Array(7)].map((_, i) => { const d = addDays(now, i - 6); return { d, total: totalOn(p.id, dayKey(d)) }; });
+  const max = Math.max(g * 1.15, ...days.map(x => x.total));
+  const avg = Math.round(days.reduce((a, x) => a + x.total, 0) / 7);
+  const met = days.filter(x => x.total >= g).length;
+  let streak = 0, d = new Date(now);
+  if (totalOn(p.id, dayKey(d)) < g) d = addDays(d, -1);
+  while (totalOn(p.id, dayKey(d)) >= g && streak < 3650) { streak++; d = addDays(d, -1); }
+  $('#view').innerHTML = `
+  <div class="card">
+    <h2>${esc(p.name)}'s last 7 days</h2>
+    <div class="bars">
+      <div class="goalline" style="bottom:${g / max * 100}%"><span>Goal ${fmt(g)}</span></div>
+      ${days.map(x => `<div class="bar ${x.total >= g ? 'met' : ''}"><b>${x.total ? fmt(x.total).replace(' ', ' ') : ''}</b><i style="height:${x.total / max * 100}%"></i></div>`).join('')}
+    </div>
+    <div class="days">${days.map((x, i) => `<span>${i === 6 ? 'Today' : x.d.toLocaleDateString(undefined, { weekday: 'short' })}</span>`).join('')}</div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="num">${fmt(avg)}</div><div>Daily average</div></div>
+    <div class="stat"><div class="num">${met}/7</div><div>Goal met</div></div>
+    <div class="stat"><div class="num">${streak}</div><div>Day streak</div></div>
+  </div>`;
+}
+
+/* ---------- Person form ---------- */
+const blank = () => ({ id: null, name: '', sex: 'female', height: 170, weight: 65, activity: 'moderate', wake: '07:00', sleep: '23:00' });
+function formHTML(p) {
+  return `<form class="form" id="pform" novalidate>
+    <div class="field"><label for="f-name">Name</label><input id="f-name" value="${esc(p.name)}" placeholder="e.g. Ayşe" autocomplete="off"></div>
+    <div class="field"><label>Sex</label><div class="seg" data-k="sex">${['female', 'male'].map(v => `<button type="button" data-v="${v}" class="${p.sex === v ? 'on' : ''}">${v === 'male' ? 'Male' : 'Female'}</button>`).join('')}</div></div>
+    <div class="row2">
+      <div class="field"><label for="f-h">Height (cm)</label><input id="f-h" type="number" inputmode="decimal" value="${p.height}"></div>
+      <div class="field"><label for="f-w">Weight (kg)</label><input id="f-w" type="number" inputmode="decimal" value="${p.weight}"></div>
+    </div>
+    <div class="field"><label>Activity</label><div class="seg" data-k="activity">${Object.keys(ACT).map(v => `<button type="button" data-v="${v}" class="${p.activity === v ? 'on' : ''}">${ACT[v].l}</button>`).join('')}</div></div>
+    <div class="row2">
+      <div class="field"><label for="f-wake">Wake-up time</label><input id="f-wake" type="time" value="${p.wake || '07:00'}"></div>
+      <div class="field"><label for="f-sleep">Bedtime</label><input id="f-sleep" type="time" value="${p.sleep || '23:00'}"></div>
+    </div>
+    <div class="preview" id="preview"></div>
+    <button class="btn" id="f-save">${p.id ? 'Save changes' : 'Add person'}</button>
+  </form>`;
+}
+function bindForm(p, inSheet) {
+  const d = { ...p };
+  const read = () => {
+    d.name = $('#f-name').value; d.height = parseFloat($('#f-h').value) || 0; d.weight = parseFloat($('#f-w').value) || 0;
+    d.wake = $('#f-wake').value || '07:00'; d.sleep = $('#f-sleep').value || '23:00';
+  };
+  const preview = () => {
+    read();
+    const ok = d.height >= 100 && d.height <= 250 && d.weight >= 30 && d.weight <= 300;
+    $('#preview').innerHTML = ok
+      ? `<div class="stat"><div class="num">${bmi(d).toFixed(1)}</div><div>BMI · ${cat(bmi(d))}</div></div><div class="stat"><div class="num">${fmt(goal(d))}</div><div>Daily goal</div></div>`
+      : `<p class="err" style="grid-column:1/-1">Height 100–250 cm and weight 30–300 kg.</p>`;
+    $('#f-save').disabled = !valid(d); $('#f-save').style.opacity = valid(d) ? 1 : .5;
+  };
+  document.querySelectorAll('#pform .seg').forEach(seg => seg.addEventListener('click', ev => {
+    const b = ev.target.closest('button'); if (!b) return;
+    d[seg.dataset.k] = b.dataset.v;
+    seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); preview();
+  }));
+  ['#f-name', '#f-h', '#f-w'].forEach(s => $(s).addEventListener('input', preview));
+  $('#pform').addEventListener('submit', ev => {
+    ev.preventDefault(); read(); if (!valid(d)) return;
+    d.name = d.name.trim();
+    const isNew = !d.id;
+    if (isNew) { d.id = 'p' + Date.now(); S.people.push(d); S.active = d.id; }
+    else S.people = S.people.map(x => x.id === d.id ? d : x);
+    save(); if (inSheet) closeSheet();
+    if (isNew) { location.hash = 'today'; render(); showSplash(d); }
+    else { render(); toast(`Saved. If ${d.name}'s times changed, add the new reminders below.`, false); }
+  });
+  ['#f-wake', '#f-sleep'].forEach(s => $(s).addEventListener('change', preview));
+  preview();
+}
+
+function renderPerson() {
+  const p = person(), b = bmi(p);
+  $('#view').innerHTML = `
+  <div class="card"><h2>${esc(p.name)}</h2>${formHTML(p)}</div>
+  <div class="card">
+    <h2>Reminder plan</h2>
+    <p class="note">From ${p.wake || '07:00'} wake-up to ${p.sleep || '23:00'} bedtime: first drink 30 minutes after waking, last one an hour before bed, about every 90 minutes.</p>
+    ${planList(p, 0, false)}
+    <div class="actions">${icsLink(p, 'Add reminders to iPhone Calendar')}</div>
+    <p class="note" style="margin-top:10px">Each reminder repeats every day as a notification. If you change the times, delete the old "Drink … ml of water" events in Calendar first, then add the new ones.</p>
+  </div>
+  <div class="card">
+    <h2>How the goal is set</h2>
+    <p class="note">BMI ${b.toFixed(1)} (${cat(b)}). ${b > 25 ? 'Weight above a BMI of 25 counts at 40%, because fat holds much less water than muscle. ' : ''}Effective weight × ${p.sex === 'male' ? '35' : '31'} ml/kg for ${p.sex === 'male' ? 'men' : 'women'}, plus ${ACT[p.activity].x} ml for ${ACT[p.activity].l.toLowerCase()} activity, kept between 1.5 and 4.5 L. This covers drinks only; food adds roughly 20% more. It's a general estimate, not medical advice.</p>
+  </div>
+  <button class="btn danger" id="remove" style="width:100%">Remove ${esc(p.name)}</button>`;
+  bindForm(p, false);
+}
+
+/* ---------- Sheet ---------- */
+function openAdd() {
+  $('#sheet').innerHTML = `<div class="top"><h2 style="margin:0">Add person</h2><button class="x" id="close-sheet" aria-label="Close">×</button></div>${formHTML(blank())}`;
+  $('#overlay').hidden = false; bindForm(blank(), true); $('#f-name').focus();
+}
+function closeSheet() { $('#overlay').hidden = true; $('#sheet').innerHTML = ''; }
+
+/* ---------- Events ---------- */
+document.addEventListener('click', ev => {
+  const t = ev.target;
+  const chip = t.closest('.chip[data-id]'); if (chip) { S.active = chip.dataset.id; save(); render(); return; }
+  if (t.closest('#add-person')) return openAdd();
+  if (t.closest('#close-sheet') || t === $('#overlay')) return closeSheet();
+  if (t.closest('#sp-close')) { $('#splash').hidden = true; $('#splash').innerHTML = ''; return; }
+  const q = t.closest('.qb'); if (q) return addWater(+q.dataset.ml);
+  const del = t.closest('[data-del]'); if (del) { const p = person(); S.entries[p.id] = list(p.id).filter(e => e.t !== +del.dataset.del); save(); render(); return; }
+  if (t.closest('#toast-undo') && lastAdded) {
+    S.entries[lastAdded.id] = list(lastAdded.id).filter(e => e.t !== lastAdded.t);
+    lastAdded = null; $('#toast').hidden = true; save(); render(); return;
+  }
+  const rm = t.closest('#remove');
+  if (rm) {
+    if (!rm.classList.contains('sure')) { rm.classList.add('sure'); rm.textContent = 'Tap again to remove permanently'; return; }
+    const id = S.active; S.people = S.people.filter(p => p.id !== id); delete S.entries[id];
+    S.active = S.people[0]?.id || null; save(); location.hash = 'today'; render();
+  }
+});
+document.addEventListener('submit', ev => {
+  if (ev.target.id !== 'custom') return;
+  ev.preventDefault();
+  const v = parseFloat($('#custom-ml').value);
+  if (v >= 10 && v <= 3000) addWater(v);
+});
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('#overlay').hidden) closeSheet(); });
+window.addEventListener('hashchange', render);
+// Roll over to a new day if the app stays open past midnight.
+let lastDay = dayKey(new Date());
+setInterval(() => {
+  const k = dayKey(new Date());
+  if (k !== lastDay) { lastDay = k; render(); }
+  checkReminders();
+}, 30000);
+
+render();
+}
+</script>
+</body>
+</html>
